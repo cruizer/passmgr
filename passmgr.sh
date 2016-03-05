@@ -8,9 +8,9 @@ PASSMGRMODEFLAG=0
 # Sanitized user search pattern
 PASSMGRUSERPTN=
 # Base pattern for record matching
-PASSMGRBEGINPTN='\*\*\*[\w\d.\-,?!_\047"]*?'
+PASSMGRBEGINPTN='\*\*\*[\w\d.\-,?!_\047" ]*?'
 # the user provided pattern will be inserted between these two
-PASSMGRENDPTN='[\w\d.\-,?!_\047"]*\*\*\*(.|\n)*?---ENDOFENTRY---'
+PASSMGRENDPTN='[\w\d.\-,?!_\047" ]*\*\*\*(.|\n)*?---ENDOFENTRY---'
 # An entry would look like the following in the password database file
 # ***<entryname>***
 # login: <login>
@@ -43,7 +43,7 @@ check_pwfile()
 sanitize_pattern()
 {
   # ' -> \047  ,   " -> \042
-  PASSMGRUSERPTN=$(echo $2 | sed "s/'/\\\047/g" | sed "s/\"/\\\042/g")
+  PASSMGRUSERPTN=$(echo $1 | sed "s/'/\\\047/g" | sed "s/\"/\\\042/g")
 }
 verify_user_input()
 {
@@ -75,8 +75,8 @@ add_pass()
 read_pass()
 {
   check_pwfile
-  # Replace single quotes with octet notation and store it in PASSMGRSEARCHPTN
-  sanitize_pattern
+  # Replace single quotes with octet notation and store it in PASSMGRUSERPTN
+  sanitize_pattern $1
   # Allowed characters in entry name: word characters, digits, punctuation, quotation. 
   gpg -d  < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
 }
@@ -87,7 +87,6 @@ read_pass()
 # }
 
 # "Main"
-echo "$1"
 if [[ "$#" -ne 2 && ( "$#" -ne 1 || "$1" -ne "addpass" ) ]]; then
   echo "Illegal number of parameters."
   usage
@@ -106,7 +105,7 @@ case "$1" in
     echo "Not implemented."
     ;;
   readpass)
-    read_pass
+    read_pass $2
     ;;
   editpass)
     echo "Not implemented."
