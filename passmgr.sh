@@ -69,7 +69,7 @@ add_pass()
   fi 
   echo "Specify password entry name:"
   read passmgrentryname
-  echo $"***$passmgrentryname***\nlogin:\npassword:\nNOTES:\n---ENDOFENTRY---" | vim - -n  -i "NONE" 
+  echo -e $"***$passmgrentryname***\nlogin:\npassword:\nNOTES:\n---ENDOFENTRY---" | vim - -n  -i "NONE" 
 }
 # Read matching pw records
 read_pass()
