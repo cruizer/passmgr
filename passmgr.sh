@@ -96,6 +96,8 @@ fi
 if [[ ! -p  $PASSMGRLOCKPIPE ]]; then
     mkfifo $PASSMGRLOCKPIPE
 fi
+# Set GPG_TTY env variable if not set or empty
+: ${GPG_TTY:=`tty`}
 # Dispatcher
 case "$1" in
   addpass)
