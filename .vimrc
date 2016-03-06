@@ -1,2 +1,3 @@
 " If this is an add op and there is a file already (flag=1) we concatenate the data already in the file and the current entry.
-command WriteEncrypted w !if [[ $PASSMGRMODEFLAG -eq 1 ]];then { gpg -d /tmp/pwfile.gpg; cat -; echo go > $PASSMGRLOCKPIPE; } | ( read < $PASSMGRLOCKPIPE; gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg; );else gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg; fi
+command -bar WriteEncrypted w !if [[ $PASSMGRMODEFLAG -eq 1 ]];then { gpg -d /tmp/pwfile.gpg; cat -; echo go > $PASSMGRLOCKPIPE; } | ( read < $PASSMGRLOCKPIPE; gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg; );else gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg; fi
+command SavePass WriteEncrypted|q!
