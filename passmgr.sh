@@ -3,8 +3,6 @@ PASSMGRDATAFILE=/tmp/pwfile.gpg
 # This will be a named pipe, that we use with read to block GPG from running twice in some cases.
 export PASSMGRLOCKPIPE=/tmp/passmgr.LOCK
 PASSMGRTEMPFILE=
-# 0=unset, 1=addpass to existing file
-PASSMGRMODEFLAG=0
 # Sanitized user search pattern
 PASSMGRUSERPTN=
 # Base pattern for record matching
@@ -95,7 +93,7 @@ save_encrypted()
       exit 5
     else
       # Concat existing data with the new and encrypt
-      echo "$PASSMGRARCHIVE$PASSMGRCURRENT" | gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+      echo -e "$PASSMGRARCHIVE\n$PASSMGRCURRENT" | gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg
     fi
   else
     # Encrypt current data only
