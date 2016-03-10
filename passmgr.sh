@@ -102,13 +102,18 @@ save_encrypted()
     cat - | gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg
   fi
 }
-
-# "Main"
-if [[ "$#" -ne 2 && ( "$#" -ne 1 || "$1" -ne "addpass" ) ]]; then
+# Verify that number of params is correct
+# $1 number of params received
+# $2 allowed number of params
+check_parnum()
+{
+  if [[ "$1" -ne "$2" ]]; then
   echo "Illegal number of parameters."
   usage
   exit 1
 fi
+}
+# "Main"
 # In case no lock pipe is created we create one.
 if [[ ! -p  $PASSMGRLOCKPIPE ]]; then
     mkfifo $PASSMGRLOCKPIPE
@@ -118,18 +123,21 @@ fi
 # Dispatcher
 case "$1" in
   addpass)
-    add_pass
+    check_parnum $# 1
+    add_pass 
     ;;
   rmpass)
     echo "Not implemented."
     ;;
   readpass)
+    check_parnum $# 2
     read_pass $2
     ;;
   editpass)
     echo "Not implemented."
     ;;
   --saveEnc)
+    check_parnum $# 1
     cat - | save_encrypted
     ;;
   *)
