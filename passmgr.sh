@@ -23,6 +23,7 @@ PASSMGRENDPTN='[\w\d.\-,?!_\047" ]*\*\*\*(.|\n)*?---ENDOFENTRY---'
 # 2 Invalid command.
 # 3 No passsword data file.
 # 4 User entry contains invalid characters.
+# 5 Archive decryption failed.
 
 # Print script usage information
 usage()
@@ -80,11 +81,27 @@ read_pass()
   # Allowed characters in entry name: word characters, digits, punctuation, quotation. 
   gpg -d  < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
 }
-# Edit an existing password entry
-# edit_pass()
-# {
-#
-# }
+# Encrypt password data received from vi session and merge with existing data if required.
+save_encrypted()
+{
+  # If there is already a password file existing
+  if [[ $PASSMGRMODEFLAG -eq 1 ]];then
+    PASSMGRCURRENT=$(cat -)
+    # We decrypt the exisiting data 
+    PASSMGRARCHIVE=$(gpg -d /tmp/pwfile.gpg)
+    # If decryption failed; eg. passphrase was not OK
+    if [[ "$?" -ne 0 ]]; then
+      echo "Decryption of archive password file failed. Verify passphrase."
+      exit 5
+    else
+      # Concat existing data with the new and encrypt
+      echo "$PASSMGRARCHIVE$PASSMGRCURRENT" | gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+    fi
+  else
+    # Encrypt current data only
+    cat - | gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+  fi
+}
 
 # "Main"
 if [[ "$#" -ne 2 && ( "$#" -ne 1 || "$1" -ne "addpass" ) ]]; then
@@ -96,7 +113,7 @@ fi
 if [[ ! -p  $PASSMGRLOCKPIPE ]]; then
     mkfifo $PASSMGRLOCKPIPE
 fi
-# Set GPG_TTY env variable if not set or empty
+# Set GPG_TTY env variable if not set or empty 
 : ${GPG_TTY:=`tty`}
 # Dispatcher
 case "$1" in
@@ -111,6 +128,9 @@ case "$1" in
     ;;
   editpass)
     echo "Not implemented."
+    ;;
+  --saveEnc)
+    cat - | save_encrypted
     ;;
   *)
     echo "Invalid command."
