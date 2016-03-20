@@ -86,7 +86,7 @@ add_pass()
 rm_pass()
 {
   #gpg -d < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
-  local PASSMGRDATA=`gpg -d < $PASSMGRDATAFILE`
+  local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
   # echo "$PASSMGRDATA"
   # 1 check if there is unique match (strict)
   # 2 if there is, remove entry
@@ -103,7 +103,7 @@ read_pass()
   # Replace single quotes with octet notation and store it in PASSMGRUSERPTN
   sanitize_pattern $1
   # Allowed characters in entry name: word characters, digits, punctuation, quotation. 
-  gpg -d  < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
+  $PASSMGRGPGCMD -d  < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
 }
 # Encrypt password data received from vi session and merge with existing data if required.
 save_encrypted()
@@ -112,18 +112,18 @@ save_encrypted()
   if [[ $PASSMGRMODEFLAG -eq 1 ]];then
     PASSMGRCURRENT=$(cat -)
     # We decrypt the exisiting data 
-    PASSMGRARCHIVE=$(gpg -d /tmp/pwfile.gpg)
+    PASSMGRARCHIVE=$($PASSMGRGPGCMD -d /tmp/pwfile.gpg)
     # If decryption failed; eg. passphrase was not OK
     if [[ "$?" -ne 0 ]]; then
       echo "Decryption of archive password file failed. Verify passphrase."
       exit 5
     else
       # Concat existing data with the new and encrypt
-      echo -e "$PASSMGRARCHIVE\n$PASSMGRCURRENT" | gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+      echo -e "$PASSMGRARCHIVE\n$PASSMGRCURRENT" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
     fi
   else
     # Encrypt current data only
-    cat - | gpg -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+    cat - | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
   fi
 }
 # Verify that number of params is correct
