@@ -1,7 +1,7 @@
 #!/bin/bash
 PASSMGRDATAFILE=/tmp/pwfile.gpg
-# This will be a named pipe, that we use with read to block GPG from running twice in some cases.
-export PASSMGRLOCKPIPE=/tmp/passmgr.LOCK
+# Store the location of the script so that we can call it externally if req (.vimrc)
+export PASSMGRSHDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PASSMGRTEMPFILE=
 # Sanitized user search pattern
 PASSMGRUSERPTN=
