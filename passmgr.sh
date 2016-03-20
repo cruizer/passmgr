@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 PASSMGRDATAFILE=/tmp/pwfile.gpg
 # This will be a named pipe, that we use with read to block GPG from running twice in some cases.
 export PASSMGRLOCKPIPE=/tmp/passmgr.LOCK
