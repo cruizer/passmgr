@@ -22,11 +22,24 @@ PASSMGRENDPTN='[\w\d.\-,?!_\047" ]*\*\*\*(.|\n)*?---ENDOFENTRY---'
 # 3 No passsword data file.
 # 4 User entry contains invalid characters.
 # 5 Archive decryption failed.
+# 6 GPG command not detected.
 
 # Print script usage information
 usage()
 {
   echo "Usage: passmgr addpass OR passmgr readpass|rmpass <name>"
+}
+# Check if GPG is present and which version (1|2)
+determine_gpg_cmd()
+{
+  if command -v gpg >/dev/null 2>&1 ; then
+    PASSMGRGPGCMD=gpg
+  elif command -v gpg2 >/dev/null 2>&1 ; then
+    PASSMGRGPGCMD=gpg2
+  else
+    echo "ERROR 6 Unable to find GPG. Check if GPG is installed and it is in your PATH."
+    exit 6
+  fi
 }
 # Check if the encyrpted file is already present
 check_pwfile()
@@ -70,6 +83,19 @@ add_pass()
   read passmgrentryname
   echo -e $"***$passmgrentryname***\nlogin:\npassword:\nNOTES:\n---ENDOFENTRY---" | vim - -n  -i "NONE" 
 }
+rm_pass()
+{
+  #gpg -d < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
+  local PASSMGRDATA=`gpg -d < $PASSMGRDATAFILE`
+  # echo "$PASSMGRDATA"
+  # 1 check if there is unique match (strict)
+  # 2 if there is, remove entry
+  # 3 if match is not unique OR there is no match, list similar entries
+  local REGEX="\*\*\*""$1""\*\*\*"
+  if [[ $PASSMGRDATA =~ $REGEX ]]; then
+    echo "Match."
+  fi
+}
 # Read matching pw records
 read_pass()
 {
@@ -112,10 +138,7 @@ check_parnum()
 fi
 }
 # "Main"
-# In case no lock pipe is created we create one.
-if [[ ! -p  $PASSMGRLOCKPIPE ]]; then
-    mkfifo $PASSMGRLOCKPIPE
-fi
+determine_gpg_cmd
 # Set GPG_TTY env variable if not set or empty 
 : ${GPG_TTY:=`tty`}
 # Dispatcher
@@ -125,7 +148,8 @@ case "$1" in
     add_pass 
     ;;
   rmpass)
-    echo "Not implemented."
+    check_parnum $# 2
+    rm_pass $2
     ;;
   readpass)
     check_parnum $# 2
