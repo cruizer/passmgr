@@ -9,6 +9,8 @@ PASSMGRUSERPTN=
 PASSMGRBEGINPTN='\*\*\*[\w\d.\-,?!_\047" ]*?'
 # the user provided pattern will be inserted between these two
 PASSMGRENDPTN='[\w\d.\-,?!_\047" ]*\*\*\*(.|\n)*?---ENDOFENTRY---'
+# end of entry pattern only matching until end of title line.
+PASSMGRENDTITLEPTN='[\w\d.\-,?!_\047" ]*\*\*\*'
 # An entry would look like the following in the password database file
 # ***<entryname>***
 # login: <login>
@@ -87,13 +89,31 @@ rm_pass()
 {
   #gpg -d < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
   local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
-  # echo "$PASSMGRDATA"
-  # 1 check if there is unique match (strict)
-  # 2 if there is, remove entry
-  # 3 if match is not unique OR there is no match, list similar entries
-  local REGEX="\*\*\*""$1""\*\*\*"
+  # re matching the title of entries
+  local REGEX="\*\*\*$1\*\*\*"
+  # re matching the full entry (required for removal)
+  local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
+  # If any title matches the regex (strict)
   if [[ $PASSMGRDATA =~ $REGEX ]]; then
-    echo "Match."
+    echo "Matched: ""$BASH_REMATCH"
+    echo "Do you want to remove this entry? (y/n)"
+    local userconfirm=x
+    while [[ "$userconfirm" != "y" && "$userconfirm" != "n" ]]; do
+      read userconfirm
+      if [[ "$userconfirm" = "y" ]]; then
+        echo "$PASSMGRDATA" | pcregrep -v -M "$REGEXFULL" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+      elif [[ "$userconfirm" = "n" ]]; then
+        echo "Remove aborted."
+        exit 0
+      else
+        echo "You response is invalid. Please respond (y)es or (n)o."
+      fi
+    done
+  else
+    # If no exact match is found we show the similar entries.
+    echo "No exact match found."
+    echo "Similar entries are:"
+    echo "$PASSMGRDATA" | pcregrep -i "$PASSMGRBEGINPTN$1$PASSMGRENDTITLEPTN"
   fi
 }
 # Read matching pw records

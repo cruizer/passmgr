@@ -1,5 +1,5 @@
 # passmgr
-Simplistic CLI (BASH) password manager.
+Simplistic CLI (BASH) password manager. (alpha)
 
 ## Options
 
@@ -8,3 +8,10 @@ Simplistic CLI (BASH) password manager.
 
 ### Display all password entries matching *pattern*
 `passmgr.sh readpass <pattern>`
+
+## Dependencies
+
+* BASH
+* GPG
+* pcregrep
+* vim
