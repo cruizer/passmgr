@@ -25,6 +25,8 @@ PASSMGRENDTITLEPTN='[\w\d.\-,?!_\047" ]*\*\*\*'
 # 4 User entry contains invalid characters.
 # 5 Archive decryption failed.
 # 6 GPG command not detected.
+# 7 check_pwfile called with illegal arg
+# 8 save_encrypted called with illegal arg
 
 # Print script usage information
 usage()
@@ -44,13 +46,24 @@ determine_gpg_cmd()
   fi
 }
 # Check if the encyrpted file is already present
+# Modes:
+# - exit if not found: check_pwfile hard
+# - if found, return 0, otherwise 1: check_pwfile soft
 check_pwfile()
 {
   if [[ -f  $PASSMGRDATAFILE ]]; then
     echo "Password data file found."
+    return 0
   else
-    echo "No password data file is found. EXITING."
-    exit 3
+    if [[ "$1" = "hard" ]]; then
+      echo "ERROR 3 No password data file is found. EXITING."
+      exit 3
+    elif [[ "$1" = "soft" ]]; then
+      return 1
+    else
+      echo "check_pwfile: Called with illegal argument."
+      exit 7
+    fi
   fi
 }
 # Replacing single/double quotes with octal representation
@@ -68,78 +81,126 @@ verify_user_input()
     exit 4
   fi
 }
-
-# TASKS
-
-# Add password entry to encrypted pw store
-add_pass()
+# Find entry that has a title that matches exactly.
+find_exact_match()
 {
-  # If the password file exists already, we need
-  # to add the entry to that. (This flag is checked in the vim custom command.)
-  if [[ -f  $PASSMGRDATAFILE ]]; then
-    export PASSMGRMODEFLAG=1
-  else
-    export PASSMGRMODEFLAG=0
-  fi 
-  echo "Specify password entry name:"
-  read passmgrentryname
-  echo -e $"***$passmgrentryname***\nlogin:\npassword:\nNOTES:\n---ENDOFENTRY---" | vim - -n  -i "NONE" 
-}
-rm_pass()
-{
-  #gpg -d < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
-  local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
-  # re matching the title of entries
+  # RE matching the title of an entry.
   local REGEX="\*\*\*$1\*\*\*"
-  # re matching the full entry (required for removal)
-  local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
-  # If any title matches the regex (strict)
-  if [[ $PASSMGRDATA =~ $REGEX ]]; then
+  local DATA=$2
+  if [[ $DATA =~ $REGEX ]]; then
     echo "Matched: ""$BASH_REMATCH"
-    echo "Do you want to remove this entry? (y/n)"
-    local userconfirm=x
-    while [[ "$userconfirm" != "y" && "$userconfirm" != "n" ]]; do
-      read userconfirm
-      if [[ "$userconfirm" = "y" ]]; then
-        echo "$PASSMGRDATA" | pcregrep -v -M "$REGEXFULL" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
-      elif [[ "$userconfirm" = "n" ]]; then
-        echo "Remove aborted."
-        exit 0
-      else
-        echo "You response is invalid. Please respond (y)es or (n)o."
-      fi
-    done
+    return 1
   else
     # If no exact match is found we show the similar entries.
     echo "No exact match found."
     echo "Similar entries are:"
-    echo "$PASSMGRDATA" | pcregrep -i "$PASSMGRBEGINPTN$1$PASSMGRENDTITLEPTN"
+    echo "$DATA" | pcregrep -i "$PASSMGRBEGINPTN$1$PASSMGRENDTITLEPTN"
+    return 0
   fi
+}
+
+ask_yes_no()
+{
+  echo $1" (y/n)"
+  local userconfirm=x
+  while [[ "$userconfirm" != "y" && "$userconfirm" != "n" ]]; do
+    read userconfirm
+    if [[ "$userconfirm" = "y" ]]; then
+      return 1
+    elif [[ "$userconfirm" = "n" ]]; then
+      return 0
+    else
+      echo "You response is invalid. Please respond (y)es or (n)o."
+    fi
+  done
+}
+# TASKS
+
+# Add password entry to encrypted pw store.
+add_pass()
+{
+  export PASSMGRSAVEMODE="append"
+  echo "Specify password entry name:"
+  read passmgrentryname
+  echo -e $"***$passmgrentryname***\nlogin:\npassword:\nNOTES:\n---ENDOFENTRY---" | vim - -n  -i "NONE"
+}
+# Remove entry from encrypted pw store.
+rm_pass()
+{
+  local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
+  # re matching the full entry (required for removal)
+  local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
+  find_exact_match $1 $PASSMGRDATA
+  # If find_exact_match found a match 
+  if [[ $? -eq 1 ]]; then
+    ask_yes_no "Do you want to remove this entry?"
+    if [[ $? -eq 1 ]]; then
+      echo "$PASSMGRDATA" | pcregrep -v -M "$REGEXFULL" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+    else
+      echo "Remove aborted."
+      exit 0
+    fi
+  fi  
 }
 # Read matching pw records
 read_pass()
 {
-  check_pwfile
+  check_pwfile "hard"
   # Replace single quotes with octet notation and store it in PASSMGRUSERPTN
   sanitize_pattern $1
   # Allowed characters in entry name: word characters, digits, punctuation, quotation. 
   $PASSMGRGPGCMD -d  < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
 }
+edit_pass()
+{
+  export PASSMGRSAVEMODE="replace"
+  local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
+  # re matching the full entry
+  local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
+  find_exact_match $1 $PASSMGRDATA
+  if [[ $? -eq 1 ]]; then
+    ask_yes_no "Do you want to edit this entry?"
+    if [[ $? -eq 1 ]]; then
+      echo "$PASSMGRDATA" | pcregrep -M "$REGEXFULL" | vim - -n  -i "NONE"
+    else
+      echo "Edit aborted."
+      exit 0
+    fi
+  fi
+  # 3 If there is an exact match, open it in vi
+  # 4 Edit in vim
+  # 5 Save entry and insert in place of the original.
+}
 # Encrypt password data received from vi session and merge with existing data if required.
+# Modes:
+# - append entry to existing data: save_encrypted append
+# - replace existing entry with edited data: save_encrypted replace
 save_encrypted()
 {
   # If there is already a password file existing
-  if [[ $PASSMGRMODEFLAG -eq 1 ]];then
-    PASSMGRCURRENT=$(cat -)
+  if check_pwfile "soft";then
+    local REGEX="\*\*\*([^*]+)\*\*\*"
+    local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
+    local PASSMGRCURRENT=$(cat -)
     # We decrypt the exisiting data 
-    PASSMGRARCHIVE=$($PASSMGRGPGCMD -d /tmp/pwfile.gpg)
+    local PASSMGRARCHIVE=$($PASSMGRGPGCMD -d /tmp/pwfile.gpg)
     # If decryption failed; eg. passphrase was not OK
     if [[ "$?" -ne 0 ]]; then
       echo "Decryption of archive password file failed. Verify passphrase."
       exit 5
     else
-      # Concat existing data with the new and encrypt
-      echo -e "$PASSMGRARCHIVE\n$PASSMGRCURRENT" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+      if [[ "$PASSMGRSAVEMODE" = "append" ]]; then
+        # Concat existing data with the new and encrypt
+        echo -e "$PASSMGRARCHIVE\n$PASSMGRCURRENT" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+      elif [[ "$PASSMGRSAVEMODE" = "replace" ]]; then
+        # echo -e "$PASSMGRARCHIVE" | sed 's//'
+        if [[ $PASSMGRCURRENT =~ $REGEX ]]; then
+          echo "${BASH_REMATCH[1]}"
+        fi
+      else
+        echo "ERROR 8 save_encrypted: Unknown parameter."
+        exit 8
+      fi
     fi
   else
     # Encrypt current data only
@@ -176,7 +237,8 @@ case "$1" in
     read_pass $2
     ;;
   editpass)
-    echo "Not implemented."
+    check_parnum $# 2
+    edit_pass $2
     ;;
   --saveEnc)
     check_parnum $# 1

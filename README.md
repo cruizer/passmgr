@@ -9,6 +9,8 @@ Simplistic CLI (BASH) password manager. (alpha)
 ### Display all password entries matching *pattern*
 `passmgr.sh readpass <pattern>`
 
+### Remove password entry with a title exactly matching *pattern*
+`passhmgr.sh rmpass <pattern>`
 ## Dependencies
 
 * BASH
