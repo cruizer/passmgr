@@ -1,8 +1,5 @@
 #!/bin/bash
 PASSMGRDATAFILE=/tmp/pwfile.gpg
-# Store the location of the script so that we can call it externally if req (.vimrc)
-export PASSMGRSHDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PASSMGRTEMPFILE=
 # Sanitized user search pattern
 PASSMGRUSERPTN=
 # Base pattern for record matching
@@ -27,6 +24,7 @@ PASSMGRENDTITLEPTN='[\w\d.\-,?!_\047" ]*\*\*\*'
 # 6 GPG command not detected.
 # 7 check_pwfile called with illegal arg
 # 8 save_encrypted called with illegal arg
+# 9 call_vim called with illegal mode arg
 
 # Print script usage information
 usage()
@@ -114,15 +112,30 @@ ask_yes_no()
     fi
   done
 }
+# call_vim <mode>
+call_vim()
+{
+  local mode=$1
+  if [[ "$mode" = "append" || "$mode" = "replace" ]]; then
+    # Location of the passmgr script
+    local scriptlocation="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/passmgr.sh"
+    vim - -n --cmd \
+    "let g:PassMgrSaveMode = '$mode' | let g:PassMgrScriptLocation = '$scriptlocation'" -i "NONE"
+  else
+    echo "ERROR 9: call_vim mode arg should be *append* or *replace*."
+    exit 9
+  fi
+  
+}
 # TASKS
 
 # Add password entry to encrypted pw store.
 add_pass()
 {
-  export PASSMGRSAVEMODE="append"
   echo "Specify password entry name:"
   read passmgrentryname
-  echo -e $"***$passmgrentryname***\nlogin:\npassword:\nNOTES:\n---ENDOFENTRY---" | vim - -n  -i "NONE"
+  echo -e $"***$passmgrentryname***\nlogin:\npassword:\nNOTES:\n---ENDOFENTRY---" \
+  | call_vim "append"
 }
 # Remove entry from encrypted pw store.
 rm_pass()
@@ -135,7 +148,8 @@ rm_pass()
   if [[ $? -eq 1 ]]; then
     ask_yes_no "Do you want to remove this entry?"
     if [[ $? -eq 1 ]]; then
-      echo "$PASSMGRDATA" | pcregrep -v -M "$REGEXFULL" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+      echo "$PASSMGRDATA" | pcregrep -v -M "$REGEXFULL" \
+      | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
     else
       echo "Remove aborted."
       exit 0
@@ -149,11 +163,11 @@ read_pass()
   # Replace single quotes with octet notation and store it in PASSMGRUSERPTN
   sanitize_pattern $1
   # Allowed characters in entry name: word characters, digits, punctuation, quotation. 
-  $PASSMGRGPGCMD -d  < $PASSMGRDATAFILE | pcregrep -i -M "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
+  $PASSMGRGPGCMD -d  < $PASSMGRDATAFILE | pcregrep -i -M \
+  "$PASSMGRBEGINPTN$PASSMGRUSERPTN$PASSMGRENDPTN"
 }
 edit_pass()
 {
-  export PASSMGRSAVEMODE="replace"
   local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
   # re matching the full entry
   local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
@@ -161,7 +175,7 @@ edit_pass()
   if [[ $? -eq 1 ]]; then
     ask_yes_no "Do you want to edit this entry?"
     if [[ $? -eq 1 ]]; then
-      echo "$PASSMGRDATA" | pcregrep -M "$REGEXFULL" | vim - -n  -i "NONE"
+      echo "$PASSMGRDATA" | pcregrep -M "$REGEXFULL" | call_vim "replace"
     else
       echo "Edit aborted."
       exit 0
@@ -175,6 +189,8 @@ edit_pass()
 # Modes:
 # - append entry to existing data: save_encrypted append
 # - replace existing entry with edited data: save_encrypted replace
+# BEWARE: Any output echoed to stdout will be concealed if and when
+# gpg is run. We need to look into how to go around this later.
 save_encrypted()
 {
   # If there is already a password file existing
@@ -182,6 +198,7 @@ save_encrypted()
     local REGEX="\*\*\*([^*]+)\*\*\*"
     local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
     local PASSMGRCURRENT=$(cat -)
+    local SAVEMODE=$1
     # We decrypt the exisiting data 
     local PASSMGRARCHIVE=$($PASSMGRGPGCMD -d /tmp/pwfile.gpg)
     # If decryption failed; eg. passphrase was not OK
@@ -189,10 +206,11 @@ save_encrypted()
       echo "Decryption of archive password file failed. Verify passphrase."
       exit 5
     else
-      if [[ "$PASSMGRSAVEMODE" = "append" ]]; then
+      if [[ "$SAVEMODE" = "append" ]]; then
         # Concat existing data with the new and encrypt
-        echo -e "$PASSMGRARCHIVE\n$PASSMGRCURRENT" | $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
-      elif [[ "$PASSMGRSAVEMODE" = "replace" ]]; then
+        echo -e "$PASSMGRARCHIVE\n$PASSMGRCURRENT" | \
+        $PASSMGRGPGCMD -c --cipher-algo AES256 -o /tmp/pwfile.gpg
+      elif [[ "$SAVEMODE" = "replace" ]]; then
         # echo -e "$PASSMGRARCHIVE" | sed 's//'
         if [[ $PASSMGRCURRENT =~ $REGEX ]]; then
           echo "${BASH_REMATCH[1]}"
@@ -241,8 +259,8 @@ case "$1" in
     edit_pass $2
     ;;
   --saveEnc)
-    check_parnum $# 1
-    cat - | save_encrypted
+    check_parnum $# 2
+    save_encrypted $2
     ;;
   *)
     echo "Invalid command."
