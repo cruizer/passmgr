@@ -84,7 +84,7 @@ find_exact_match()
 {
   # RE matching the title of an entry.
   local REGEX="\*\*\*$1\*\*\*"
-  local DATA=$2
+  local DATA="$2"
   if [[ $DATA =~ $REGEX ]]; then
     echo "Matched: ""$BASH_REMATCH"
     return 1
@@ -99,7 +99,7 @@ find_exact_match()
 
 ask_yes_no()
 {
-  echo $1" (y/n)"
+  echo "$1"" (y/n)"
   local userconfirm=x
   while [[ "$userconfirm" != "y" && "$userconfirm" != "n" ]]; do
     read userconfirm
@@ -143,7 +143,7 @@ rm_pass()
   local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
   # re matching the full entry (required for removal)
   local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
-  find_exact_match $1 $PASSMGRDATA
+  find_exact_match "$1" "$PASSMGRDATA"
   # If find_exact_match found a match 
   if [[ $? -eq 1 ]]; then
     ask_yes_no "Do you want to remove this entry?"
@@ -171,7 +171,7 @@ edit_pass()
   local PASSMGRDATA=`$PASSMGRGPGCMD -d < $PASSMGRDATAFILE`
   # re matching the full entry
   local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
-  find_exact_match $1 $PASSMGRDATA
+  find_exact_match "$1" "$PASSMGRDATA"
   if [[ $? -eq 1 ]]; then
     ask_yes_no "Do you want to edit this entry?"
     if [[ $? -eq 1 ]]; then
@@ -196,7 +196,6 @@ save_encrypted()
   # If there is already a password file existing
   if check_pwfile "soft";then
     local REGEX="\*\*\*([^*]+)\*\*\*"
-    local REGEXFULL="\*\*\*$1\*\*\*(.|\n)*?---ENDOFENTRY---"
     local PASSMGRCURRENT=$(cat -)
     local SAVEMODE=$1
     # We decrypt the exisiting data 
@@ -213,7 +212,10 @@ save_encrypted()
       elif [[ "$SAVEMODE" = "replace" ]]; then
         # echo -e "$PASSMGRARCHIVE" | sed 's//'
         if [[ $PASSMGRCURRENT =~ $REGEX ]]; then
-          echo "${BASH_REMATCH[1]}"
+          local currenttitle="${BASH_REMATCH[1]}"
+          local REGEXFULL="\*\*\*$currenttitle\*\*\*(.|\n)*?---ENDOFENTRY---"
+          echo -e "$(echo -e "$PASSMGRARCHIVE" | pcregrep -v -M "$REGEXFULL")""\n$PASSMGRCURRENT" \
+          | $PASSMGRGPGCMD -c --cipher-algo AES256 -o $PASSMGRDATAFILE
         fi
       else
         echo "ERROR 8 save_encrypted: Unknown parameter."
@@ -248,19 +250,19 @@ case "$1" in
     ;;
   rmpass)
     check_parnum $# 2
-    rm_pass $2
+    rm_pass "$2"
     ;;
   readpass)
     check_parnum $# 2
-    read_pass $2
+    read_pass "$2"
     ;;
   editpass)
     check_parnum $# 2
-    edit_pass $2
+    edit_pass "$2"
     ;;
   --saveEnc)
     check_parnum $# 2
-    save_encrypted $2
+    save_encrypted "$2"
     ;;
   *)
     echo "Invalid command."
