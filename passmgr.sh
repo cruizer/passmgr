@@ -264,6 +264,10 @@ case "$1" in
     check_parnum $# 2
     save_encrypted "$2"
     ;;
+  --shunit2)
+    shift
+    "$@"
+    ;;
   *)
     echo "Invalid command."
     usage
