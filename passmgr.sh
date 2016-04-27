@@ -238,41 +238,42 @@ check_parnum()
   exit 1
 fi
 }
-# "Main"
-determine_gpg_cmd
-# Set GPG_TTY env variable if not set or empty 
-: ${GPG_TTY:=`tty`}
-# Dispatcher
-case "$1" in
-  addpass)
-    check_parnum $# 1
-    add_pass 
-    ;;
-  rmpass)
-    check_parnum $# 2
-    rm_pass "$2"
-    ;;
-  readpass)
-    check_parnum $# 2
-    read_pass "$2"
-    ;;
-  editpass)
-    check_parnum $# 2
-    edit_pass "$2"
-    ;;
-  --saveEnc)
-    check_parnum $# 2
-    save_encrypted "$2"
-    ;;
-  --shunit2)
-    shift
-    "$@"
-    ;;
-  *)
-    echo "Invalid command."
-    usage
-    exit 2
-    ;;
-esac
-
+if [[ $1 != "testsource"  ]];then
+	# "Main"
+	determine_gpg_cmd
+	# Set GPG_TTY env variable if not set or empty 
+	: ${GPG_TTY:=`tty`}
+	# Dispatcher
+	case "$1" in
+  		addpass)
+    			check_parnum $# 1
+    			add_pass 
+    			;;
+  		rmpass)
+    			check_parnum $# 2
+    			rm_pass "$2"
+    			;;
+  		readpass)
+    			check_parnum $# 2
+    			read_pass "$2"
+    			;;
+  		editpass)
+    			check_parnum $# 2
+    			edit_pass "$2"
+    			;;
+  		--saveEnc)
+    			check_parnum $# 2
+    			save_encrypted "$2"
+    			;;
+  		--shunit2)
+    			shift
+    			"$@"
+			;;
+		*)
+			echo "Invalid command."
+   			usage
+  			exit 2
+    			;;
+	esac
+fi
 
