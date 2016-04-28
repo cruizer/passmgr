@@ -1,5 +1,26 @@
 #!/bin/bash
 . ../passmgr.sh testsource
+# Simple mock function that stores the args it was called with in a variable
+mock()
+{
+	mockcalled="yes"
+	mockresult="$@"
+}
+# Replace $1 with mock() and store $1 in $beforemock temporarily
+mock_f()
+{
+	mockcalled="no"
+	beforemock=$(declare -f $1)
+	local mock=$(declare -f mock)
+	local mocked_f="$1${mock#mock}"
+	eval "$mocked_f"
+}
+# Restore last function mocked with mock_f
+demock_f()
+{
+	eval "$beforemock"
+}
+# BEGIN Test Cases
 testCheckParnumSuccesRetcode()
 {
   local result
@@ -21,10 +42,13 @@ testCheckParnumFailureRetcode()
 testCheckParnumFailureOutput()
 {
   local result expected
-  result=$(check_parnum 3 4 | head -n1)
+  mock_f usage
+  result=$(check_parnum 3 4)
   expected="Illegal number of parameters."
   assertEquals "check_parnum returned invalid output" \
     "Illegal number of parameters." "$result"
+  demock_f
 }
+# END Test Cases
 # load shUnit2
 . ./lib/shunit2/source/2.1/src/shunit2
