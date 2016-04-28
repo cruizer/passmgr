@@ -49,6 +49,15 @@ testCheckParnumFailureOutput()
     "Illegal number of parameters." "$result"
   demock_f
 }
+testCheckParnumSuccessUsageCall()
+{
+	local result expected
+	expected="no"
+	mock_f usage
+	check_parnum 3 3
+	assertEquals "check_parnum called usage on succes" \
+		"no" $mockcalled
+}
 # END Test Cases
 # load shUnit2
 . ./lib/shunit2/source/2.1/src/shunit2
