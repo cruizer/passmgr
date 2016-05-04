@@ -18,7 +18,13 @@ mock_f()
 # Restore last function mocked with mock_f
 demock_f()
 {
-	eval "$beforemock"
+	if [[ $beforemock ]];then
+		eval "$beforemock"
+	fi
+}
+tearDown()
+{
+	demock_f
 }
 # BEGIN Test Cases
 testCheckParnumSuccesRetcode()
@@ -47,16 +53,24 @@ testCheckParnumFailureOutput()
   expected="Illegal number of parameters."
   assertEquals "check_parnum returned invalid output" \
     "Illegal number of parameters." "$result"
-  demock_f
 }
 testCheckParnumSuccessUsageCall()
 {
 	local result expected
 	expected="no"
 	mock_f usage
-	check_parnum 3 3
+	result=$(check_parnum 3 3)
 	assertEquals "check_parnum called usage on succes" \
-		"no" $mockcalled
+		$expected $mockcalled
+}
+testCheckParnumFailureUsageCall()
+{
+	local expected
+	expected="yes"
+	mock_f usage
+	check_parnum 3 4 > /dev/null
+	assertEquals "check_parnum did not call usage on failure" \
+		$expected $mockcalled
 }
 # END Test Cases
 # load shUnit2

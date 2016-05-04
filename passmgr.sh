@@ -30,6 +30,7 @@ PASSMGRENDTITLEPTN='[\w\d.\-,?!_\047" ]*\*\*\*'
 usage()
 {
   echo "Usage: passmgr addpass OR passmgr readpass|rmpass <name>"
+  exit $1
 }
 # Check if GPG is present and which version (1|2)
 determine_gpg_cmd()
@@ -234,8 +235,7 @@ check_parnum()
 {
   if [[ "$1" -ne "$2" ]]; then
   echo "Illegal number of parameters."
-  usage
-  exit 1
+  usage 1
 fi
 }
 if [[ $1 != "testsource"  ]];then
@@ -271,9 +271,7 @@ if [[ $1 != "testsource"  ]];then
 			;;
 		*)
 			echo "Invalid command."
-   			usage
-  			exit 2
+   			usage 2
     			;;
 	esac
 fi
-
