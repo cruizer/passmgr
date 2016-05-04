@@ -72,6 +72,21 @@ testCheckParnumFailureUsageCall()
 	assertEquals "check_parnum did not call usage on failure" \
 		$expected $mockcalled
 }
+testUsageRetCode()
+{
+	local result expected
+	expected=5
+	result=$(usage 5)
+	assertEquals "usage returned with incorrect code" $expected $?
+}
+testUsageOutput()
+{
+	local result expected
+	expected="Usage: passmgr addpass OR passmgr readpass|rmpass <name>"
+	result=$(usage 2)
+	assertEquals "usage returned with incorrect output" \
+		"$expected" "$result"
+}
 # END Test Cases
 # load shUnit2
 . ./lib/shunit2/source/2.1/src/shunit2
