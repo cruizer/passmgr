@@ -1,5 +1,6 @@
 #!/bin/bash
 . ../passmgr.sh testsource
+PASSMGRDATAFILE="test_pwfile.test"
 # Simple mock function that stores the args it was called with in a variable
 mock()
 {
@@ -85,6 +86,48 @@ testUsageOutput()
 	expected="Usage: passmgr addpass OR passmgr readpass|rmpass <name>"
 	result=$(usage 2)
 	assertEquals "usage returned with incorrect output" \
+		"$expected" "$result"
+}
+testCheckPwFileSuccessRetCode()
+{
+	local result
+	touch "$PASSMGRDATAFILE"
+	result=$(check_pwfile hard)
+	rm "$PASSMGRDATAFILE"
+	assertTrue "check_pwfile hard returned non zero code" $?
+}
+testCheckPwFileHardFailureRetCode()
+{
+	local result expected
+	expected=3
+	result=$(check_pwfile hard)
+	assertEquals "check_pwfile hard returned code other than 3" \
+		$expected $?
+}
+testCheckPwFileSoftFailureRetCode()
+{
+	local result expected
+	expected=1
+	result=$(check_pwfile soft)
+	assertEquals "check_pwfile soft returned code other than 1" \
+		$expected $?
+}
+testCheckPwFileUnknownFailureRetCode()
+{
+	local result expected
+	expected=7
+	result=$(check_pwfile other)
+	assertEquals "check_pwfile unknown returned code other than 7" \
+		$expected $?
+}
+testCheckPwFileSuccessOutput()
+{
+	local result expected
+	touch "$PASSMGRDATAFILE"
+	expected="Password data file found."
+	result=$(check_pwfile hard)
+	rm "$PASSMGRDATAFILE"
+	assertEquals "check_pwfile hard returned incorrect output" \
 		"$expected" "$result"
 }
 # END Test Cases
